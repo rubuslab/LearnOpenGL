@@ -174,6 +174,8 @@ set(7.in_practice
 )
 
 set(GUEST_ARTICLES
+	7.in_practice/3.2d_game/0.full_source
+
 	8.guest/2020/oit
 	8.guest/2020/skeletal_animation
 	8.guest/2021/1.scene/1.scene_graph
