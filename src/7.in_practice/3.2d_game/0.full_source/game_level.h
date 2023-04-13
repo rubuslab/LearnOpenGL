@@ -8,6 +8,8 @@
 ******************************************************************/
 #ifndef GAMELEVEL_H
 #define GAMELEVEL_H
+
+#include <string>
 #include <vector>
 
 #include <glad/glad.h>
@@ -28,7 +30,7 @@ public:
     // constructor
     GameLevel() { }
     // loads level from file
-    void Load(const char *file, unsigned int levelWidth, unsigned int levelHeight);
+    void Load(const std::string& filename, unsigned int levelWidth, unsigned int levelHeight);
     // render level
     void Draw(SpriteRenderer &renderer);
     // check if the level is completed (all non-solid tiles are destroyed)

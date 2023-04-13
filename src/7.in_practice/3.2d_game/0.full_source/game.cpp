@@ -7,6 +7,7 @@
 ** option) any later version.
 ******************************************************************/
 #include <algorithm>
+#include <format>
 #include <sstream>
 #include <iostream>
 
@@ -33,14 +34,14 @@ ParticleGenerator *Particles;
 PostProcessor     *Effects;
 ISoundEngine      *SoundEngine = createIrrKlangDevice();
 TextRenderer      *Text;
+TextRenderer*     TextDescription;
 
 float ShakeTime = 0.0f;
 
 
 Game::Game(unsigned int width, unsigned int height) 
     : State(GAME_MENU), Keys(), KeysProcessed(), Width(width), Height(height), Level(0), Lives(3)
-{ 
-
+{
 }
 
 Game::~Game()
@@ -51,6 +52,7 @@ Game::~Game()
     delete Particles;
     delete Effects;
     delete Text;
+    delete TextDescription;
     SoundEngine->drop();
 }
 
@@ -83,13 +85,19 @@ void Game::Init()
     Renderer = new SpriteRenderer(ResourceManager::GetShader("sprite"));
     Particles = new ParticleGenerator(ResourceManager::GetShader("particle"), ResourceManager::GetTexture("particle"), 500);
     Effects = new PostProcessor(ResourceManager::GetShader("postprocessing"), this->Width, this->Height);
+
+    // Initialize text renderer
     Text = new TextRenderer(this->Width, this->Height);
-    Text->Load(FileSystem::getPath("resources/fonts/OCRAEXT.TTF").c_str(), 24);
+    // Text->Load(FileSystem::getPath("resources/fonts/OCRAEXT.TTF").c_str(), 24);
+    Text->Load(FileSystem::getPath("resources/fonts/Lucida-Fax-Demibold-Italic.ttf").c_str(), 24);
+    TextDescription = new TextRenderer(this->Width, this->Height);
+    TextDescription->Load(FileSystem::getPath("resources/fonts/Lucida-Fax-Regular.ttf").c_str(), 22);
+
     // load levels
-    GameLevel one; one.Load(FileSystem::getPath("resources/levels/one.lvl").c_str(), this->Width, this->Height / 2);
-    GameLevel two; two.Load(FileSystem::getPath("resources/levels/two.lvl").c_str(), this->Width, this->Height /2 );
-    GameLevel three; three.Load(FileSystem::getPath("resources/levels/three.lvl").c_str(), this->Width, this->Height / 2);
-    GameLevel four; four.Load(FileSystem::getPath("resources/levels/four.lvl").c_str(), this->Width, this->Height / 2);
+    GameLevel one; LoadGameLevel(&one, 0);
+    GameLevel two; LoadGameLevel(&two, 1);
+    GameLevel three; LoadGameLevel(&three, 2);
+    GameLevel four; LoadGameLevel(&four, 3);
     this->Levels.push_back(one);
     this->Levels.push_back(two);
     this->Levels.push_back(three);
@@ -102,6 +110,16 @@ void Game::Init()
     Ball = new BallObject(ballPos, BALL_RADIUS, INITIAL_BALL_VELOCITY, ResourceManager::GetTexture("face"));
     // audio
     SoundEngine->play2D(FileSystem::getPath("resources/audio/breakout.mp3").c_str(), true);
+}
+
+void Game::LoadGameLevel(GameLevel* level, int level_id) {
+    std::string level_filename = "";
+    if (level_id == 0) level_filename = "resources/levels/one.lvl";
+    else if (level_id == 1) level_filename = "resources/levels/two.lvl";
+    else if (level_id == 2) level_filename = "resources/levels/three.lvl";
+    else if (level_id == 3) level_filename = "resources/levels/four.lvl";
+
+    level->Load(FileSystem::getPath(level_filename), this->Width, this->Height / 2);
 }
 
 void Game::Update(float dt)
@@ -121,21 +139,21 @@ void Game::Update(float dt)
         if (ShakeTime <= 0.0f)
             Effects->Shake = false;
     }
+
     // check loss condition
-    if (Ball->Position.y >= this->Height) // did ball reach bottom edge?
-    {
+    // did ball reach bottom edge?
+    if (Ball->Position.y >= this->Height) {
         --this->Lives;
         // did the player lose all his lives? : game over
-        if (this->Lives == 0)
-        {
+        if (this->Lives == 0) {
             this->ResetLevel();
             this->State = GAME_MENU;
         }
         this->ResetPlayer();
     }
+
     // check win condition
-    if (this->State == GAME_ACTIVE && this->Levels[this->Level].IsCompleted())
-    {
+    if (this->State == GAME_ACTIVE && this->Levels[this->Level].IsCompleted()) {
         this->ResetLevel();
         this->ResetPlayer();
         Effects->Chaos = true;
@@ -146,8 +164,7 @@ void Game::Update(float dt)
 
 void Game::ProcessInput(float dt)
 {
-    if (this->State == GAME_MENU)
-    {
+    if (this->State == GAME_MENU) {
         if (this->Keys[GLFW_KEY_ENTER] && !this->KeysProcessed[GLFW_KEY_ENTER])
         {
             this->State = GAME_ACTIVE;
@@ -168,8 +185,8 @@ void Game::ProcessInput(float dt)
             this->KeysProcessed[GLFW_KEY_S] = true;
         }
     }
-    if (this->State == GAME_WIN)
-    {
+
+    if (this->State == GAME_WIN) {
         if (this->Keys[GLFW_KEY_ENTER])
         {
             this->KeysProcessed[GLFW_KEY_ENTER] = true;
@@ -177,8 +194,8 @@ void Game::ProcessInput(float dt)
             this->State = GAME_MENU;
         }
     }
-    if (this->State == GAME_ACTIVE)
-    {
+
+    if (this->State == GAME_ACTIVE) {
         float velocity = PLAYER_VELOCITY * dt;
         // move playerboard
         if (this->Keys[GLFW_KEY_A])
@@ -206,8 +223,7 @@ void Game::ProcessInput(float dt)
 
 void Game::Render()
 {
-    if (this->State == GAME_ACTIVE || this->State == GAME_MENU || this->State == GAME_WIN)
-    {
+    if (this->State == GAME_ACTIVE || this->State == GAME_MENU || this->State == GAME_WIN) {
         // begin rendering to postprocessing framebuffer
         Effects->BeginRender();
             // draw background
@@ -228,39 +244,34 @@ void Game::Render()
         Effects->EndRender();
         // render postprocessing quad
         Effects->Render(glfwGetTime());
+
         // render text (don't include in postprocessing)
-        std::stringstream ss; ss << this->Lives;
-        Text->RenderText("Lives:" + ss.str(), 5.0f, 5.0f, 1.0f);
+        std::string lives = std::format("Lives : {}", this->Lives);
+        Text->RenderText(lives, 5.0f, 5.0f, 1.0f);
     }
-    if (this->State == GAME_MENU)
-    {
-        Text->RenderText("Press ENTER to start", 250.0f, this->Height / 2.0f, 1.0f);
-        Text->RenderText("Press W or S to select level", 245.0f, this->Height / 2.0f + 20.0f, 0.75f);
+
+    if (this->State == GAME_MENU) {
+        float start_y = this->Height / 2.0f + 30.0f;
+        Text->RenderText("Press ENTER to start game.", 140.0f, start_y, 1.0f);
+
+        std::string desc_lv = std::format("Press W or S to select game level [ {} ].", this->Level);
+        TextDescription->RenderText(desc_lv, 140.0f, start_y + 40.0f, 0.75f);
+        TextDescription->RenderText("Press A or D to move player, press Space to shoot when playing game.", 140.0f, start_y + 65.0f, 0.75f);
     }
-    if (this->State == GAME_WIN)
-    {
+
+    if (this->State == GAME_WIN) {
         Text->RenderText("You WON!!!", 320.0f, this->Height / 2.0f - 20.0f, 1.0f, glm::vec3(0.0f, 1.0f, 0.0f));
-        Text->RenderText("Press ENTER to retry or ESC to quit", 130.0f, this->Height / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
+        TextDescription->RenderText("Press ENTER to retry or ESC to quit", 130.0f, this->Height / 2.0f, 1.0f, glm::vec3(1.0f, 1.0f, 0.0f));
     }
 }
 
-
-void Game::ResetLevel()
-{
-    if (this->Level == 0)
-        this->Levels[0].Load("levels/one.lvl", this->Width, this->Height / 2);
-    else if (this->Level == 1)
-        this->Levels[1].Load("levels/two.lvl", this->Width, this->Height / 2);
-    else if (this->Level == 2)
-        this->Levels[2].Load("levels/three.lvl", this->Width, this->Height / 2);
-    else if (this->Level == 3)
-        this->Levels[3].Load("levels/four.lvl", this->Width, this->Height / 2);
-
+void Game::ResetLevel() {
+    GameLevel& level = this->Levels[this->Level];
+    LoadGameLevel(&level, this->Level);
     this->Lives = 3;
 }
 
-void Game::ResetPlayer()
-{
+void Game::ResetPlayer() {
     // reset player/ball stats
     Player->Size = PLAYER_SIZE;
     Player->Position = glm::vec2(this->Width / 2.0f - PLAYER_SIZE.x / 2.0f, this->Height - PLAYER_SIZE.y);
@@ -335,6 +346,7 @@ bool ShouldSpawn(unsigned int chance)
     unsigned int random = rand() % chance;
     return random == 0;
 }
+
 void Game::SpawnPowerUps(GameObject &block)
 {
     if (ShouldSpawn(75)) // 1 in 75 chance

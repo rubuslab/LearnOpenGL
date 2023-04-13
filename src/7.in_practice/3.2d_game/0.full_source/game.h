@@ -19,14 +19,14 @@
 
 // Represents the current state of the game
 enum GameState {
-    GAME_ACTIVE,
+    GAME_ACTIVE = 0,
     GAME_MENU,
     GAME_WIN
 };
 
 // Represents the four possible (collision) directions
 enum Direction {
-    UP,
+    UP = 0,
     RIGHT,
     DOWN,
     LEFT
@@ -46,8 +46,7 @@ const float BALL_RADIUS = 12.5f;
 // Game holds all game-related state and functionality.
 // Combines all game-related data into a single class for
 // easy access to each of the components and manageability.
-class Game
-{
+class Game {
 public:
     // game state
     GameState               State;	
@@ -74,6 +73,9 @@ public:
     // powerups
     void SpawnPowerUps(GameObject &block);
     void UpdatePowerUps(float dt);
+
+private:
+    void LoadGameLevel(GameLevel* level, int map_id);
 };
 
 #endif

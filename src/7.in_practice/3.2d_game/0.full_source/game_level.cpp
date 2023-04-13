@@ -12,7 +12,7 @@
 #include <sstream>
 
 
-void GameLevel::Load(const char *file, unsigned int levelWidth, unsigned int levelHeight)
+void GameLevel::Load(const std::string& filename, unsigned int levelWidth, unsigned int levelHeight)
 {
     // clear old data
     this->Bricks.clear();
@@ -20,7 +20,7 @@ void GameLevel::Load(const char *file, unsigned int levelWidth, unsigned int lev
     unsigned int tileCode;
     GameLevel level;
     std::string line;
-    std::ifstream fstream(file);
+    std::ifstream fstream(filename);
     std::vector<std::vector<unsigned int>> tileData;
     if (fstream)
     {
