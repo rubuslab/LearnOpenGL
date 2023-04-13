@@ -243,7 +243,7 @@ void Game::Render()
         // end rendering to postprocessing framebuffer
         Effects->EndRender();
         // render postprocessing quad
-        Effects->Render(glfwGetTime());
+        Effects->Render(static_cast<float>(glfwGetTime()));
 
         // render text (don't include in postprocessing)
         std::string lives = std::format("Lives : {}", this->Lives);

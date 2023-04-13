@@ -21,10 +21,12 @@ TextRenderer::TextRenderer(unsigned int width, unsigned int height)
     // load and configure shader
     this->TextShader = ResourceManager::LoadShader("text_2d.vs", "text_2d.fs", nullptr, "text");
     this->TextShader.SetMatrix4("projection", glm::ortho(0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f), true);
-    this->TextShader.SetInteger("text", 0);
+    this->TextShader.SetInteger("samplerTexture", 0);
+
     // configure VAO/VBO for texture quads
     glGenVertexArrays(1, &this->VAO);
     glGenBuffers(1, &this->VBO);
+
     glBindVertexArray(this->VAO);
     glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(float) * 6 * 4, NULL, GL_DYNAMIC_DRAW);
@@ -85,7 +87,7 @@ void TextRenderer::Load(const std::string& font, unsigned int fontSize)
             texture,
             glm::ivec2(face->glyph->bitmap.width, face->glyph->bitmap.rows),
             glm::ivec2(face->glyph->bitmap_left, face->glyph->bitmap_top),
-            face->glyph->advance.x
+            static_cast<unsigned int>(face->glyph->advance.x)
         };
         Characters.insert(std::pair<char, Character>(c, character));
     }
@@ -95,7 +97,7 @@ void TextRenderer::Load(const std::string& font, unsigned int fontSize)
     FT_Done_FreeType(ft);
 }
 
-void TextRenderer::RenderText(std::string text, float x, float y, float scale, glm::vec3 color)
+void TextRenderer::RenderText(const std::string& text, const float x, const float y, float scale, glm::vec3 color)
 {
     // activate corresponding render state	
     this->TextShader.Use();
@@ -103,14 +105,18 @@ void TextRenderer::RenderText(std::string text, float x, float y, float scale, g
     glActiveTexture(GL_TEXTURE0);
     glBindVertexArray(this->VAO);
 
+    // Chracter info of true type
+    // https://learnopengl-cn.github.io/06%20In%20Practice/02%20Text%20Rendering/
+
     // iterate through all characters
     std::string::const_iterator c;
+    float ch_x = x;
     for (c = text.begin(); c != text.end(); c++)
     {
-        Character ch = Characters[*c];
+        const Character& ch = Characters[*c];
 
-        float xpos = x + ch.Bearing.x * scale;
-        float ypos = y + (this->Characters['H'].Bearing.y - ch.Bearing.y) * scale;
+        float xpos = ch_x + ch.Bearing.x * scale;
+        float ypos = y + (this->Characters['H'].Bearing.y - ch.Bearing.y) * scale;  // the bottom is higher
 
         float w = ch.Size.x * scale;
         float h = ch.Size.y * scale;
@@ -126,14 +132,18 @@ void TextRenderer::RenderText(std::string text, float x, float y, float scale, g
         };
         // render glyph texture over quad
         glBindTexture(GL_TEXTURE_2D, ch.TextureID);
+
         // update content of VBO memory
         glBindBuffer(GL_ARRAY_BUFFER, this->VBO);
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices); // be sure to use glBufferSubData and not glBufferData
         glBindBuffer(GL_ARRAY_BUFFER, 0);
+
         // render quad
         glDrawArrays(GL_TRIANGLES, 0, 6);
+
+        // advance unit 1/64 pixels.
         // now advance cursors for next glyph
-        x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (1/64th times 2^6 = 64)
+        ch_x += (ch.Advance >> 6) * scale; // bitshift by 6 to get value in pixels (1/64th times 2^6 = 64)
     }
     glBindVertexArray(0);
     glBindTexture(GL_TEXTURE_2D, 0);
